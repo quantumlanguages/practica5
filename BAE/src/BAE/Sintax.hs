@@ -1,6 +1,6 @@
 {--
-Practica 4
-El lenguaje MiniHS (EAB extendido con cáculo lambda). Sintaxis
+Practica 5
+El lenguaje MiniC(MiniHS con efectos). Sintaxis
 Autores:
 Edgar Quiroz Castañeda
 Sandra del Mar Soto Corderi
@@ -31,6 +31,10 @@ module BAE.Sintax where
                 | Let Identifier Expr Expr -- ^ Declaracion y ligado de variables
                 | Fn Identifier Expr -- ^ Funciones lambda
                 | App Expr Expr -- ^ Aplicacion de funciones
+                | L Int -- ^ Referencias
+                | Alloc Expr -- ^ Guardar en memoria
+                | Deref Expr -- ^ Borrar de memeoria
+                | Assig Expr Expr -- ^ Actualizar
                 deriving (Eq)
 
     -- | Implementando la clase Show para hacer la representación más estética
