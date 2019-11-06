@@ -35,6 +35,9 @@ module BAE.Sintax where
                 | Alloc Expr -- ^ Guardar en memoria
                 | Deref Expr -- ^ Borrar de memeoria
                 | Assig Expr Expr -- ^ Actualizar
+                | Void -- ^ Instrucción terminada
+                | Seq Expr Expr -- ^ Secuencia de instrucciones
+                | While Expr Expr -- ^ Ciclo de control
                 deriving (Eq)
 
     -- | Implementando la clase Show para hacer la representación más estética
@@ -59,6 +62,14 @@ module BAE.Sintax where
             (Let x e1 e2) -> "let(" ++ (show e1) ++ " , " ++ (show x) ++ "." ++ (show e2) ++ ")"
             (Fn x e1) -> "fn(" ++ x ++ "." ++ (show e1) ++ ")"
             (App e1 e2) -> "app(" ++ (show e1) ++ ", " ++ (show e2) ++ ")"
+            (L i) -> "[" ++ (show i) ++ "]"
+            (Alloc e1) -> "*(" ++ (show e1) ++ ")"
+            (Deref e1) -> "&(" ++ (show e1) ++ ")"
+            (Assig e1 e2) -> (show e1) ++ " := " ++ (show e2)
+            (Void) -> "()"
+            (Seq e1 e2) -> (show e1) ++ " ; " ++ (show e2)
+            (While e1 e2) -> "while(" ++ (show e1) ++ ") do " ++ (show e2) ++ " end"
+
 
     -- | La asignacion de variables sera emulada usando substitucion textual
     type Substitution = (Identifier, Expr)
@@ -85,6 +96,13 @@ module BAE.Sintax where
             (Let i e f) -> union (frVars e) ((frVars f) \\ [i])
             (Fn i e) -> (frVars e) \\ [i]
             (App e f) -> union (frVars e) (frVars f)
+            (L _) -> []
+            (Alloc e) -> frVars e
+            (Deref e) -> frVars e
+            (Assig e f) ->  union (frVars e) (frVars f)
+            (Void) -> []
+            (Seq e f) -> union (frVars e) (frVars f)
+            (While e f) -> union (frVars e) (frVars f)
 
     -- | Incrementa el sufijo numerico de un identificador. Si no hay valor numerico
     -- presente, entonces añade '1' al final del identificador.
@@ -156,6 +174,13 @@ module BAE.Sintax where
                     then st (alphaExpr ex)
                     else Fn x (st e)
             (App e f) -> App (st e) (st f)
+            (L _) -> ex
+            (Alloc e) -> Alloc (st e)
+            (Deref e) -> Deref (st e)
+            (Assig e1 e2) -> Assig (st e1) (st e2)
+            (Void) -> ex
+            (Seq e f) -> Seq (st e) (st f)
+            (While e f) -> While (st e) (st f)
         where st = (flip subst) s
 
     -- | Dice si dos expresiones son alpha equivalentes

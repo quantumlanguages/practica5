@@ -9,7 +9,6 @@ Sandra del Mar Soto Corderi
 module BAE.Memory where
 
     import BAE.Sintax
-    import qualified BAE.Dynamic as Dynamic
 
     -- | Definiendo tipos y alias para trabajar con memoria
     type Address = Int
@@ -17,13 +16,13 @@ module BAE.Memory where
     type Cell = (Address, Value)
     type Memory = [Cell]
 
-    -- Genera una uneva dirección de memoria queno esté en la lista
+    -- Genera una uneva dirección de memoria que no esté en la lista
     newAddress :: Memory -> Expr
-    newAddress m e = newAddresAux m 0
+    newAddress m = newAddresAux m 0
 
     -- Revisa si una dirección de memoria está en una lista. Si es el caso, 
     -- incrementa la dirección y sigue buscando
-    newAddressAux :: Memory -> Addres -> Expr
+    newAddressAux :: Memory -> Address -> Expr
     newAddressAux [] i = L i
     newAddresAux m@((l, v):ms) i = 
         if i == l
@@ -38,7 +37,7 @@ module BAE.Memory where
             else error "Corrupted memory"
 
     -- Devuelve el valor guardado sin revisar la integridad de la memoria
-    accessUnsafe :: Address -> Memory Maybe Value
+    accessUnsafe :: Address -> Memory -> Maybe Value
     accessUnsafe _ [] = Nothing
     accessUnsasfe i ((l, v):ms) =
         if i == l
@@ -46,7 +45,7 @@ module BAE.Memory where
             else access i ms
 
     -- Revisa si la memoria es válida
-    checkMemory :: Memory -> Boolean
+    checkMemory :: Memory -> Bool
     checkMemory [] = True
     checkMemory ((l, v):ms) = 
         case (filter (\(m, u) -> m == l) ms) of
@@ -56,11 +55,60 @@ module BAE.Memory where
     -- Actualiza el valor de una celda
     update :: Cell -> Memory -> Maybe Memory
     update (i, k) m = 
-        if Dynamic.blocked k
+        if blocked k
             then if checkMemory m
                 then updateUnsafe (i, k) [] m
                 else error "Corrupted memory"
-            else error "Memory cn only store values"
+            else error "Memory can only store values"
+
+    blocked :: Expr -> Bool
+    blocked expr =
+        case expr of
+        I n -> True
+        B p -> True
+        V x -> True
+        Add (I _) (I _) -> False
+        Add (I _) e -> blocked e
+        Add e1 e2 -> blocked e1
+        Mul (I _) (I _) -> False
+        Mul (I _) e -> blocked e
+        Mul e1 e2 -> blocked e1
+        Succ (I _) -> False
+        Succ e -> blocked e
+        Pred (I 0) -> False
+        Pred (I n) -> False
+        Pred e -> blocked e
+        Not (B p) -> False
+        Not e -> blocked e
+        And (B p) (B q) -> False
+        And (B p) e -> blocked e
+        And e1 e2 -> blocked e1
+        Or (B p) (B q) -> False
+        Or (B p) e -> blocked e
+        Or e1 e2 -> blocked e1
+        Lt (I n) (I m) -> False
+        Lt (I n) e -> blocked e
+        Lt e1 e2 -> blocked e1
+        Gt (I n) (I m) -> False
+        Gt (I n) e -> blocked e
+        Gt e1 e2 -> blocked e1
+        Eq (I n) (I m) -> False
+        Eq (I n) e -> blocked e
+        Eq e1 e2 -> blocked e1
+        If (B q) e1 e2 -> False
+        If e1 e2 e3 -> blocked e1
+        Let i e1 e2 -> False
+        Fn i e1 -> blocked e1
+        Fix _ _ ->False
+        App e1 e2 -> 
+            if blocked e1
+            then 
+                if blocked e2
+                then case e1 of
+                    Fn _ _ -> False
+                    _ -> True
+                else False
+            else False
         
 
     -- Actualiza el valor de una celda sin revisar la integridad de la memoria

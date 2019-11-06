@@ -1,0 +1,9 @@
+// Aproximación de logaritmo de z
+
+z := 200;
+x:= 1;
+y := 0;
+while !x < z do
+    x:= !x + !x;
+    y := !y + 1
+end_while
