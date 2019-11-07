@@ -13,6 +13,63 @@ module BAE.Dynamic where
   import qualified BAE.Static as Static
   import qualified BAE.Type as Type
 
+  blocked :: Expr -> Bool
+  blocked expr =
+      case expr of
+      I n -> True
+      B p -> True
+      V x -> True
+      L i -> True
+      Void -> True
+      Add (I _) (I _) -> False
+      Add (I _) e -> blocked e
+      Add e1 e2 -> blocked e1
+      Mul (I _) (I _) -> False
+      Mul (I _) e -> blocked e
+      Mul e1 e2 -> blocked e1
+      Succ (I _) -> False
+      Succ e -> blocked e
+      Pred (I 0) -> False
+      Pred (I n) -> False
+      Pred e -> blocked e
+      Not (B p) -> False
+      Not e -> blocked e
+      And (B p) (B q) -> False
+      And (B p) e -> blocked e
+      And e1 e2 -> blocked e1
+      Or (B p) (B q) -> False
+      Or (B p) e -> blocked e
+      Or e1 e2 -> blocked e1
+      Lt (I n) (I m) -> False
+      Lt (I n) e -> blocked e
+      Lt e1 e2 -> blocked e1
+      Gt (I n) (I m) -> False
+      Gt (I n) e -> blocked e
+      Gt e1 e2 -> blocked e1
+      Eq (I n) (I m) -> False
+      Eq (I n) e -> blocked e
+      Eq e1 e2 -> blocked e1
+      If (B q) e1 e2 -> False
+      If e1 e2 e3 -> blocked e1
+      Let i e1 e2 -> False
+      Fn i e1 -> True
+      Fix _ _ -> False
+      App e1 e2 ->
+          if blocked e1
+          then
+              if blocked e2
+              then case e1 of
+                  Fn _ _ -> False
+                  _ -> True
+              else False
+          else False
+      Alloc e -> False
+      Deref e -> False
+      Assig e1 e2 -> False
+      Seq Void e2 -> False
+      Seq e1 e2 -> blocked e1
+      While e1 e2 -> False
+
   eval1 :: (Memory, Expr) -> (Memory, Expr)
   eval1 (mem, expr) =
     case expr of
@@ -51,25 +108,33 @@ module BAE.Dynamic where
       Eq e1 e2 ->let (mem', e1') = eval1' e1 in (mem', Eq e1' e2)
       If (B q) e1 e2 -> sM $ if q then e1 else e2
       If e1 e2 e3 -> let (mem', e1') = eval1' e1 in (mem', If e1' e2 e3)
-      Let i e1 e2 -> 
+      Let x (Fix y e1) e2 -> (mem, subst e2 (x, Fix y e1))
+      Let x (Fn y e1) e2 -> (mem, subst e2 (x, Fn y e1))
+      Let i e1 e2 ->
         if blocked e1
           then sM $ subst e2 (i, e1)
           else let (mem', e1') = eval1' e1 in (mem', Let i e1' e2)
-      Fn x e1 ->  let (mem', e1') = eval1' e1 in (mem', Fn x e1')
-      Fix f e1 -> sM $ Fn f (Fix f e1)
-      App f@(Fn x e3) e2 -> 
+      Fn x e1 -> let (mem', e1') = eval1' e1 in (mem', Fn x e1')
+      Fix f e1 -> sM $ subst e1 (f, Fix f e1)
+      App f@(Fn x e3) e2 ->
         if blocked e2
           then sM $ subst e3 (x, e2)
           else let (mem', e2') = eval1' e2 in (mem', App f e2')
       App e1 e2 -> let (mem', e1') = eval1' e1 in (mem', App e1' e2)
       Seq Void e -> sM $ e
       Seq e1 e2 -> let (mem', e1') = eval1' e1 in (mem', Seq e1' e2)
-      While e1 e2 -> sM $ If e1 (Seq e2 (While e1 e2)) Void 
-      Alloc e -> 
+      While e1 e2 -> sM $ If e1 (Seq e2 (While e1 e2)) Void
+      Alloc e ->
         if blocked e
-          then let l = newAddress mem in 
+          then let l = newAddress mem in
             case l of
-              L i -> (((i, e):mem), l)
+              L i ->
+                case e of
+                  I n -> (((i, e):mem), l)
+                  B p -> (((i, e):mem), l)
+                  Fn x e -> (((i, e):mem), l)
+                  L i -> (((i, e):mem), l)
+                  _ -> error (show (mem, expr) ++ "(eval1 alloc)Memory can only store values")
               _ -> error "Invalid new address"
           else let (mem', e') = eval1' e in (mem', Alloc e')
       Deref (L i) ->
@@ -79,23 +144,23 @@ module BAE.Dynamic where
       Deref e -> let (mem', e') = eval1' e in (mem', Deref e')
       Assig (L i) e2 ->
         if blocked e2
-          then 
+          then
             case update (i, e2) mem of
               Just m -> (m, Void)
               Nothing -> error "Unasigned reference"
           else let (mem', e2') = eval1' e2 in (mem', Assig (L i) e2')
       Assig e1 e2 -> let (mem', e1') = eval1' e1 in (mem', Assig e1' e2)
     where eval1' = (\e -> eval1 (mem, e)); sM = (\x -> (mem, x))
-          
+
   evals :: (Memory, Expr) -> (Memory, Expr)
   evals s@(_, expr) =
     if blocked expr
       then s
-      else evals s
+    else evals (eval1 s)
 
   evale :: Expr -> Expr
   evale ex =
-    let (_, ex') = evals ([], ex)
+    let (m, ex') = evals ([], ex)
       in
         case ex' of
           I n -> I n
@@ -120,16 +185,16 @@ module BAE.Dynamic where
           Eq _ _ -> error "[Eq] Expected two Integer"
           If _ _ _ -> error "[If] Expected one Boolean as first argument"
           Let _ _ _ -> error "[Let] Expected one value as variable asigment"
-          Fn _ _ -> error "[Fn] Expected argument"
+          Fn _ _ -> error ((show (m, ex')) ++ "[Fn] Expected argument")
           App _ _ -> error "[App] Expected function as first argument"
-    
+
 
   eval :: Expr -> Type.Type -> Expr
   eval e t =
     let (ctx, t') = Static.infer e
       in
         if ctx /= [] then error ("Expression with unbounded variables: " ++ (show ctx))
-        else 
+        else
           if (t /= t')
             then error ("Type error: " ++ (show t) ++ " is not " ++ (show t'))
-            else evale e 
+            else evale e

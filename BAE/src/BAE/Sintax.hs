@@ -14,7 +14,7 @@ module BAE.Sintax where
     import Data.List
     import Text.Read
 
-    -- Extendiendo la intaxis
+    -- Extendiendo la sintaxis
 
     -- | Renombrando String a Identificador para usar texto como el nombre de las variables.
     type Identifier = String
@@ -62,11 +62,11 @@ module BAE.Sintax where
             (Let x e1 e2) -> "let(" ++ (show e1) ++ " , " ++ (show x) ++ "." ++ (show e2) ++ ")"
             (Fn x e1) -> "fn(" ++ x ++ "." ++ (show e1) ++ ")"
             (App e1 e2) -> "app(" ++ (show e1) ++ ", " ++ (show e2) ++ ")"
-            (L i) -> "[" ++ (show i) ++ "]"
+            (L i) -> "L " ++ (show i) ++ ""
             (Alloc e1) -> "*(" ++ (show e1) ++ ")"
             (Deref e1) -> "&(" ++ (show e1) ++ ")"
             (Assig e1 e2) -> (show e1) ++ " := " ++ (show e2)
-            (Void) -> "()"
+            (Void) -> "Void"
             (Seq e1 e2) -> (show e1) ++ " ; " ++ (show e2)
             (While e1 e2) -> "while(" ++ (show e1) ++ ") do " ++ (show e2) ++ " end"
 
@@ -201,8 +201,8 @@ module BAE.Sintax where
     alphaEq (Gt e11 e12) (Gt e21 e22) = (alphaEq e11 e21) && (alphaEq e12 e22)
     alphaEq (Eq e11 e12) (Eq e21 e22) = (alphaEq e11 e21) && (alphaEq e12 e22)
     alphaEq (App e11 e12) (App e21 e22) = (alphaEq e11 e21) && (alphaEq e12 e22)
-    alphaEq (If e1c e11 e12) (If e2c e21 e22) = 
+    alphaEq (If e1c e11 e12) (If e2c e21 e22) =
         (alphaEq e1c e2c) && (alphaEq e11 e21) && (alphaEq e12 e22)
-    alphaEq (Let x e11 e12) (Let y e21 e22) = 
+    alphaEq (Let x e11 e12) (Let y e21 e22) =
         (alphaEq e11 e21) && (alphaEq e12 (subst e22 (y, V x)))
     alphaEq _ _ = False

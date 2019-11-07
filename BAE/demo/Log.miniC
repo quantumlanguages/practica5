@@ -1,9 +1,15 @@
-// Aproximación de logaritmo de z
 
-z := 200;
-x:= 1;
-y := 0;
-while !x < z do
-    x:= !x + !x;
-    y := !y + 1
-end_while
+
+let log := fn n => let x := alloc 1 in
+                     let y := alloc 0 in
+                       (while (!x < n) do
+                         x ::= !x + !x;
+  			 y ::= !y + 1
+                        end);
+                       !y
+                     end
+                   end
+in
+  log $ 100
+end :: Integer
+
