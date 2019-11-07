@@ -66,7 +66,7 @@ module BAE.Sintax where
             (Alloc e1) -> "*(" ++ (show e1) ++ ")"
             (Deref e1) -> "&(" ++ (show e1) ++ ")"
             (Assig e1 e2) -> (show e1) ++ " := " ++ (show e2)
-            (Void) -> "Void"
+            (Void) -> "void"
             (Seq e1 e2) -> (show e1) ++ " ; " ++ (show e2)
             (While e1 e2) -> "while(" ++ (show e1) ++ ") do " ++ (show e2) ++ " end"
 

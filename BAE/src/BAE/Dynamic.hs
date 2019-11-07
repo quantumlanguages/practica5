@@ -76,8 +76,8 @@ module BAE.Dynamic where
       I n -> error "blocked state: integer"
       B p -> error "blocked state: boolean"
       V x -> error "blocked state: variable"
-      L _ -> error "blocked state"
-      Void -> error "blocked state"
+      L _ -> error "blocked state: reference"
+      Void -> error "blocked state: void"
       Add (I n) (I m) -> sM $ I (n + m)
       Add (I n) e -> let (mem', e') = eval1' e in (mem', Add (I n) e')
       Add e1 e2 -> let (mem', e1') = eval1' e1 in (mem', Add e1' e2)
@@ -134,7 +134,7 @@ module BAE.Dynamic where
                   B p -> (((i, e):mem), l)
                   Fn x e -> (((i, e):mem), l)
                   L i -> (((i, e):mem), l)
-                  _ -> error (show (mem, expr) ++ "(eval1 alloc)Memory can only store values")
+                  _ -> error "Memory can only store values"
               _ -> error "Invalid new address"
           else let (mem', e') = eval1' e in (mem', Alloc e')
       Deref (L i) ->
@@ -185,7 +185,7 @@ module BAE.Dynamic where
           Eq _ _ -> error "[Eq] Expected two Integer"
           If _ _ _ -> error "[If] Expected one Boolean as first argument"
           Let _ _ _ -> error "[Let] Expected one value as variable asigment"
-          Fn _ _ -> error ((show (m, ex')) ++ "[Fn] Expected argument")
+          Fn _ _ -> error "[Fn] Expected argument"
           App _ _ -> error "[App] Expected function as first argument"
 
 

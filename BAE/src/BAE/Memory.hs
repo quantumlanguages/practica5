@@ -65,7 +65,7 @@ module BAE.Memory where
                     B p -> updateUnsafe (i, k) [] m
                     Fn x e -> updateUnsafe (i, k) [] m
                     L i -> updateUnsafe (i, k) [] m
-                    _ -> error ((show m) ++ (show k) ++ " : Memory can only store values")
+                    _ -> error "Memory can only store values"
                 else error "Corrupted memory"
 
 
